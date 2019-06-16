@@ -8,7 +8,7 @@ axios.defaults.headers.common['Authorization'] = `Bearer ${process.env.JWT}`
 app.use(bp.json());
 app.use(bp.urlencoded({ extended: true }));
 
-app.post('/barfer/user/create', (req, res) => {
+app.post('/barfer/user', (req, res) => {
     var body = req.body
     console.log(`Request from ${req.connection.remoteAddress} to create user "${req.body.name}"`)
     
@@ -19,7 +19,7 @@ app.post('/barfer/user/create', (req, res) => {
         "passwd": req.body.passwd,
         "user": req.body.name
     }).then(function (CreateUserRes) {
-        // Create stream for the users feed
+        // Create a stream for the users feed
         axios.post(`${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/streams/persistent/stream/${req.body.name}`, {
             outputTriggers: {}
         }).then(function (CreateStreamRes) {
