@@ -1,0 +1,16 @@
+{
+    "name": "barfsvc",
+    "version": "1.0.0",
+    "description": "Example on how to use the Macrometa API to make s simple twitter like app. This is the backend.",
+    "author": "Jarle Aase",
+    "main": "app.js",
+    "scripts": {
+      "start": "node app.js"
+    },
+    "dependencies": {
+      "url":"^0.11.0",
+      "axios":"^0.19.0",
+      "express":"^4.17.1",
+      "body-parser":"^1.19.0"
+    }
+  }
