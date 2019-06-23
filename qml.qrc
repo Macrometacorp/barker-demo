@@ -8,5 +8,8 @@
         <file>BarkDlg.qml</file>
         <file>MainToolBar.qml</file>
         <file>images/Vector_search_icon.svg</file>
+        <file>UserList.qml</file>
+        <file>RestView.qml</file>
+        <file>UserView.qml</file>
     </qresource>
 </RCC>

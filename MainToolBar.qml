@@ -11,6 +11,7 @@ ToolBar {
             text: qsTr("‹")
             Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
             onClicked: mainWindow.stack.pop()
+            enabled: mainWindow.stack.depth > 1
         }
 
         TextField {
@@ -30,6 +31,31 @@ ToolBar {
             text: qsTr("⋮")
             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
             onClicked: menu.open()
+
+            Menu {
+                id: menu
+
+                MenuItem {
+                    text: qsTr("I follow")
+                    onTriggered: {
+                        mainWindow.showFollowers('outbound', 1)
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Followers")
+                    onTriggered: {
+                        mainWindow.showFollowers('inbound', 1)
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Followers an theirs")
+                    onTriggered: {
+                        mainWindow.showFollowers('inbound', 2)
+                    }
+                }
+            }
         }
     }
 }

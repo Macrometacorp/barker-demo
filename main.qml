@@ -17,7 +17,7 @@ ApplicationWindow {
     property var keys: ([])
     property string jwt: null
     property var queue: ([])
-    property alias  mainView: feedView
+    property alias  mainView: listView
     property alias stack: stackView
 
     header: MainToolBar {
@@ -72,11 +72,7 @@ ApplicationWindow {
     StackView {
         id: stackView
         anchors.fill: parent
-
-        ScrollView {
-            id: feedView
-            anchors.fill: parent
-
+        initialItem:
             ListView {
                 id: listView
                 anchors.fill: parent
@@ -84,9 +80,12 @@ ApplicationWindow {
                 delegate: ItemDelegate {
                     text: `${when} @${barker}: ${bark}`
                     width: parent.width
+                    onClicked:  {
+                        console.log('Clicked')
+                    }
                 }
             }
-        }
+
     }
 
     RoundButton {
@@ -124,7 +123,20 @@ ApplicationWindow {
     }
 
     function search(term) {
+        // Search for about
 
+        if (term.charAt(0) == '@') {
+            var lowerTerm = term.toLowerCase()
+            var query = 'for u in users filter u._key == @name return u'
+            var bind =  {"name": term.substr(1)}
+        } else {
+            // Search in about field
+            var lowerTerm = term.toLowerCase()
+            var query = 'for u in users filter contains(lower(u.about), lower(@phrase)) return u'
+            var bind =  {"phrase": term}
+        }
+
+        openUserList(query, bind)
     }
 
     function createUser(data) {
@@ -226,6 +238,95 @@ ApplicationWindow {
         cli.send(JSON.stringify(data))
         busy.running = true
         mainWindow.appState = 4
+    }
+
+    function follow(key) {
+        var cli = new XMLHttpRequest();
+        cli.onreadystatechange = function() {
+            if (cli.readyState === XMLHttpRequest.DONE) {
+                if (cli.status >= 200 && cli.status < 300 ) {
+                    popup.text = qsTr(`You successfully follows ${key}`)
+                } else {
+                    popup.text = qsTr("Error when follwing: ") + cli.responseText
+                }
+                popup.open();
+
+                if (mainWindow.appState === 4) {
+                    mainWindow.appState = 3
+                }
+            }
+        }
+
+        var url = `${api}/document/follow`;
+        var data = {
+            _from: `users/${user.name}`,
+            _to: `users/${key}`,
+            vertex: user.name
+        }
+
+        cli.open('POST', url, true);
+        cli.setRequestHeader('Content-type', 'application/json');
+        cli.setRequestHeader('Accept', 'application/json');
+        cli.setRequestHeader('Authorization', `Bearer ${jwt}`);
+        cli.send(JSON.stringify(data))
+    }
+
+    function unfollow(key) {
+        var cli = new XMLHttpRequest();
+        cli.onreadystatechange = function() {
+            if (cli.readyState === XMLHttpRequest.DONE) {
+                if (cli.status >= 200 && cli.status < 300 ) {
+                    popup.text = qsTr(`You successfully unfollowed ${key}`)
+                } else {
+                    popup.text = qsTr("Error when unfollowing: ") + cli.responseText
+                }
+                popup.open();
+
+                if (mainWindow.appState === 4) {
+                    mainWindow.appState = 3
+                }
+            }
+        }
+
+        var url = `${api}/cursor`;
+        var data = {
+            bindVars: {from: `users/${user.name}`, to: `users/${key}`},
+            query: 'for f in follow filter f._from == @from and f._to == @to remove f in follow'
+        }
+
+        cli.open('POST', url, true);
+        cli.setRequestHeader('Content-type', 'application/json');
+        cli.setRequestHeader('Accept', 'application/json');
+        cli.setRequestHeader('Authorization', `Bearer ${jwt}`);
+        cli.send(JSON.stringify(data))
+        console.log('sending data: ' + JSON.stringify(data))
+    }
+
+    function showFollowers(direction, level) {
+        // Search in about field
+        var query = 'with users
+    for follower in 1..@level ' + direction + ' @who follow
+        filter follower.active == true
+        return distinct follower'
+        var bind =  {who: `users/${user.name}`, level : level}
+
+        openUserList(query, bind)
+    }
+
+    function openUserList(query, bind) {
+        var component = Qt.createComponent("qrc:/UserList.qml")
+        if (component.status !== Component.Ready) {
+            if(component.status === Component.Error )
+                console.debug("Error:"+ component.errorString() );
+            return;
+        }
+        var view = component.createObject(mainWindow, {
+            parent : mainWindow,
+            query: query,
+            bind: bind
+        });
+
+        stack.push(view)
     }
 
     function next() {
