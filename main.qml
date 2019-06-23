@@ -8,13 +8,22 @@ ApplicationWindow {
     visible: true
     width: 640
     height: 480
-    title: "Barfer"
+    title: "barker"
 
-    property int appState: 0 // 0 init, 1 have token, 2 connecting, 3 connected
+    property int appState: 0 // 0 init, 1 have token, 2 connecting, 3 connected, 4 barking
     property string api: null
     property string authHeader: null
     property string wssUrl: null
     property var keys: ([])
+    property string jwt: null
+    property var queue: ([])
+    property alias  mainView: feedView
+    property alias stack: stackView
+
+    header: MainToolBar {
+        id: mainToolBar
+        width: parent.width
+    }
 
     // Remember the windows position and size
     Settings {
@@ -59,17 +68,63 @@ ApplicationWindow {
         }
     }
 
-    ScrollView {
+
+    StackView {
+        id: stackView
         anchors.fill: parent
 
-        ListView {
-            width: parent.width
-            model: feed
-            delegate: ItemDelegate {
-                text: `${when} ${barfer}: ${barf}`
-                width: parent.width
+        ScrollView {
+            id: feedView
+            anchors.fill: parent
+
+            ListView {
+                id: listView
+                anchors.fill: parent
+                model: feed
+                delegate: ItemDelegate {
+                    text: `${when} @${barker}: ${bark}`
+                    width: parent.width
+                }
             }
         }
+    }
+
+    RoundButton {
+        id: roundButton
+        width: 60
+        height: 60
+        radius: width / 2
+        Image {
+            width: 30
+            height: 30
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.horizontalCenter: parent.horizontalCenter
+            id: icon
+            source: "qrc:///images/Barking_Dog_-_The_Noun_Project.svg"
+        }
+        anchors.bottomMargin: 6
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        font.bold: true
+        highlighted: true
+        enabled: mainWindow.appState == 3
+
+        onClicked: {
+            var component = Qt.createComponent("qrc:/BarkDlg.qml")
+            if (component.status !== Component.Ready) {
+                if(component.status === Component.Error )
+                    console.debug("Error:"+ component.errorString() );
+                return;
+            }
+            var dlg = component.createObject(mainWindow, {
+                parent : mainWindow
+            });
+            dlg.open()
+        }
+    }
+
+    function search(term) {
+
     }
 
     function createUser(data) {
@@ -94,7 +149,7 @@ ApplicationWindow {
             }
         }
 
-        cli.open('POST', `${app.service}/barfer/user`, true);
+        cli.open('POST', `${app.service}/barker/user`, true);
         cli.setRequestHeader('Content-type', 'application/json');
         cli.send(JSON.stringify(data))
         busy.running = true
@@ -111,6 +166,7 @@ ApplicationWindow {
                     mainWindow.api= data.api
                     mainWindow.appState = 1
                     mainWindow.authHeader = `Authorization: Bearer ${data.jwt}`
+                    mainWindow.jwt = data.jwt
                     mainWindow.wssUrl = data.wss
 
                     next();
@@ -125,13 +181,51 @@ ApplicationWindow {
             }
         }
 
-        cli.open('POST', `${app.service}/barfer/login`, true);
+        cli.open('POST', `${app.service}/barker/login`, true);
         cli.setRequestHeader('Content-type', 'application/json');
         cli.send(JSON.stringify({
             name: user.name,
             passwd: user.passwd
         }))
         busy.running = true
+    }
+
+
+    function bark(data) {
+        queue.push(data)
+    }
+
+    function _bark(data) {
+        data.barker = user.name
+        data.jwt = jwt
+
+        var cli = new XMLHttpRequest();
+        cli.onreadystatechange = function() {
+            console.log(`bark state change: ${cli.readyState}`)
+            if (cli.readyState === XMLHttpRequest.DONE) {
+                if (cli.status === 202) {
+                    popup.text = qsTr("You successfully barked!")
+                } else {
+                    popup.text = qsTr("Error when barking: ") + cli.responseText
+                }
+                popup.open();
+                busy.running = false
+
+                if (mainWindow.appState === 4) {
+                    mainWindow.appState = 3
+                }
+            }
+        }
+
+        var url = `${app.service}/barker/bark`
+
+        console.log(`Barking to url: ${url}`)
+
+        cli.open('POST', url, true);
+        cli.setRequestHeader('Content-type', 'application/json');
+        cli.send(JSON.stringify(data))
+        busy.running = true
+        mainWindow.appState = 4
     }
 
     function next() {
@@ -210,16 +304,29 @@ ApplicationWindow {
             console.log(`Wss onTextMessageReceived: ${message}`)
             const msg = JSON.parse(message)
             const payload = Qt.atob(msg.payload)
-            var barf = JSON.parse(payload)
-            barf.when = new Date(barf.timestamp).toLocaleString(Qt.locale('en'), Locale.ShortFormat);
+            var bark = JSON.parse(payload)
+            bark.when = new Date(bark.timestamp).toLocaleString(Qt.locale('en'), Locale.ShortFormat);
 
             // We keep all the keys we have loaded in 'keys to avoid
             // duplicates when re-connecting. We could clear the feed
             // when re-connecting as well, but that would cause flickering.
-            if (!keys.includes(barf._key)) {
-                keys.push(barf._key)
-                feed.insert(0, barf)
+            if (!keys.includes(bark._key)) {
+                keys.push(bark._key)
+                feed.insert(0, bark)
+            }
+        }
+    }
+
+    Timer {
+        id: timer
+        interval: 1000
+        running: mainWindow.appState === 3
+        repeat: true
+        onTriggered: {
+            if (queue.length) {
+                _bark(queue.pop())
             }
         }
     }
 }
+

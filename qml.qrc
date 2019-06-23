@@ -3,5 +3,10 @@
         <file>main.qml</file>
         <file>qtquickcontrols2.conf</file>
         <file>CreateUserDlg.qml</file>
+        <file>images/Barking_Dog_-_The_Noun_Project.svg</file>
+        <file>main.cpp</file>
+        <file>BarkDlg.qml</file>
+        <file>MainToolBar.qml</file>
+        <file>images/Vector_search_icon.svg</file>
     </qresource>
 </RCC>

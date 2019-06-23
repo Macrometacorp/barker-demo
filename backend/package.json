@@ -1,5 +1,5 @@
 {
-    "name": "barfsvc",
+    "name": "barksvc",
     "version": "1.0.0",
     "description": "Example on how to use the Macrometa API to make s simple twitter like app. This is the backend.",
     "author": "Jarle Aase",

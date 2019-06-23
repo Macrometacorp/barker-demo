@@ -10,7 +10,7 @@ const host = process.env.APIURL.replace(/(^\w+:|^)\/\//, '')
 app.use(bp.json());
 app.use(bp.urlencoded({ extended: true }));
 
-app.post('/barfer/user', async (req, res) => {
+app.post('/barker/user', async (req, res) => {
     console.log(`Request from ${req.connection.remoteAddress} to create user "${req.body.name}"`)
     
     // Create database user
@@ -56,7 +56,7 @@ app.listen(process.env.PORT, () => {
     console.log(`Server is listening on ${process.env.PORT}`)
 })
 
-app.post('/barfer/login', async (req, res) => {
+app.post('/barker/login', async (req, res) => {
     console.log(`Request from ${req.connection.remoteAddress} to log in user "${req.body.name}"`)
     
     try {
@@ -81,13 +81,13 @@ app.post('/barfer/login', async (req, res) => {
     }
   });
 
-  app.post('/barfer/barf', async (req, res) => {
-    console.log(`Request from ${req.connection.remoteAddress} user "${req.body.barfer}" to barf`)
+  app.post('/barker/bark', async (req, res) => {
+    console.log(`Request from ${req.connection.remoteAddress} user "${req.body.barker}" to bark`)
 
-    var barf = {
-        barfer: req.body.barfer,
-        barfType: req.body.type,
-        barf: req.body.text,
+    var bark = {
+        barker: req.body.barker,
+        barkType: req.body.type,
+        bark: req.body.text,
         image: req.body.image,
         timestamp: new Date().getTime()
     }
@@ -96,46 +96,54 @@ app.post('/barfer/login', async (req, res) => {
         // TODO: Validate input
 
         const CreateDocRes = await axios.post(
-            `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/document/barfs`, 
-            barf)
+            `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/document/barks`, 
+            bark)
 
-        barf._key = CreateDocRes.data._key
+        bark._key = CreateDocRes.data._key
 
-        await distibuteBarf(barf)
+        // Bark to followers 
+        await distibuteBark(bark)
+
+        // Bark to self
+        await sendToStream(bark, bark.barker)
 
         // Return status
-        return res.send({
+        return res.status(202).send({
             status: "OK",
             _key: CreateDocRes.data._key
             });
         
     } catch(error) {
-        console.log(`*** Request from ${req.connection.remoteAddress} barfer "${req.body.name}" to barf failed with error: ${error.message}`)
-        return res.status(500).send({what: 'Failed to barf', err: error.message})
+        console.log(`*** Request from ${req.connection.remoteAddress} barker "${req.body.name}" to bark failed with error: ${error.message}`)
+        return res.status(500).send({what: 'Failed to bark', err: error.message})
     }
   })
 
-async function distibuteBarf(barf) {
-    console.log(`Distributing barf ${barf._key}`)
+async function distibuteBark(bark) {
+    console.log(`Distributing bark ${bark._key}`)
 
-    const followersRes = await axios.post(
-        `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/cursor`, {
-            query: `with users
-            for follower in 1..1 inbound 'users/${barf.barfer}' follows
-                filter follower.active == true
-                return distinct follower._key`
-        })
+    const url = `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/cursor`;
+    const query =  `with users
+    for follower in 1..1 inbound 'users/${bark.barker}' follow
+        filter follower.active == true
+        return distinct follower._key`
+    
+    // console.log(`url: ${url}`)
+    // console.log(`query: ${query}`)
+
+
+    const followersRes = await axios.post(url, {query: query})
 
     // TODO: Do we need to handle followersRes.data.hasMore ?
     for (ix in followersRes.data.result) {
         var name = followersRes.data.result[ix]
-        console.log(` .. Barfing to ${name}`)
+        console.log(` .. barking to ${name}`)
 
-        await sendToStream(barf, name)
+        await sendToStream(bark, name)
     }
 }
 
-async function sendToStream(barf, name) {
+async function sendToStream(bark, name) {
     let promise = await new Promise((resolve, reject) => {
 
         var streamUri = `wss://${host}/_ws/ws/v2/producer/persistent/${process.env.TENANT}/c8global.${process.env.FABRIC}/${name}`
@@ -153,7 +161,7 @@ async function sendToStream(barf, name) {
             console.log("..")
 
             var payload = {
-                payload: Buffer.from(JSON.stringify(barf)).toString('base64'),
+                payload: Buffer.from(JSON.stringify(bark)).toString('base64'),
             }
 
             var pstr = JSON.stringify(payload)
@@ -161,7 +169,7 @@ async function sendToStream(barf, name) {
 
             ws.send(pstr, (err) => {
                 if (err) {
-                    console.log(`Failed to barf to ${name}: ` + JSON.stringify(err))
+                    console.log(`Failed to bark to ${name}: ` + JSON.stringify(err))
                     reject(JSON.stringify(err))
                 } else {
                     resolve();
