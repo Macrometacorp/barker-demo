@@ -24,8 +24,9 @@ app.post('/barker/user', async (req, res) => {
             passwd: req.body.passwd,
             user: req.body.name
         })
-    
 
+        // Todo: Grant permissions to collections
+    
         // Create a stream for the users feed
         doing = 'Create stream'
         CreateStreamRes = await axios.post(
