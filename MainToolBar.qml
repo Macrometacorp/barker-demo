@@ -36,9 +36,23 @@ ToolBar {
                 id: menu
 
                 MenuItem {
+                    text: qsTr("Most nearby barkers")
+                    onTriggered: {
+                        mainWindow.showNearby(5)
+                    }
+                }
+
+                MenuItem {
                     text: qsTr("I follow")
                     onTriggered: {
                         mainWindow.showFollowers('outbound', 1)
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("I follow and tyey folloe")
+                    onTriggered: {
+                        mainWindow.showFollowers('outbound', 2)
                     }
                 }
 

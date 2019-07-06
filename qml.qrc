@@ -11,5 +11,8 @@
         <file>UserList.qml</file>
         <file>RestView.qml</file>
         <file>UserView.qml</file>
+        <file>FormattedTime.qml</file>
+        <file>FeedDelegate.qml</file>
+        <file>Barker.qml</file>
     </qresource>
 </RCC>

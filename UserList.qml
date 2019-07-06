@@ -8,7 +8,7 @@ RestView {
     anchors.fill: parent
 
     delegate: ItemDelegate {
-        text: `@${_key} ${about}`
+        text: `@${_key} ` + getText()
         width: root.width
 
         onClicked: {
@@ -25,6 +25,13 @@ RestView {
             });
 
             mainWindow.stack.push(view)
+        }
+
+        function getText() {
+            if (typeof distance !== 'undefined') {
+                return Math.round(distance) / 1000.0 + qsTr(' km away')
+            }
+            return about
         }
     }
 }

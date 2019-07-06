@@ -6,7 +6,14 @@ import QtQuick.Controls 1.4
 Item {
     id: root
     property var userData: null
+    property string name: null
     anchors.fill: parent
+
+    Component.onCompleted: {
+        if (name && !userData) {
+
+        }
+    }
 
     Text {
         id: barker
@@ -61,9 +68,8 @@ Item {
         anchors.topMargin: 3
         query: `for b in barks filter b.barker == "${root.userData._key}" sort b.timestamp desc return b`
         bind: {}
-        delegate: ItemDelegate {
-            text: when(timestamp) + ` @${barker} ${bark}`
-            width: root.width
+        delegate: FeedDelegate {
+            list: list
         }
     }
 

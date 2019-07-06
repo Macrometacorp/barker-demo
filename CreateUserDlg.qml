@@ -38,8 +38,10 @@ Dialog {
                 Layout.fillWidth: true
             }
 
-            TextField {
+            TextInput {
                 id: passwd
+                color: "#6fed2d"
+                echoMode: TextInput.Password
                 Layout.fillWidth: true
             }
 
@@ -59,6 +61,7 @@ Dialog {
             Layout.minimumWidth: 3
             Layout.fillWidth: true
             clip: true
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         }
     }
 

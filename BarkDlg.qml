@@ -29,6 +29,7 @@ Dialog {
             Layout.minimumHeight: 30
             Layout.minimumWidth: 3
             Layout.fillWidth: true
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
             clip: true
 
         }

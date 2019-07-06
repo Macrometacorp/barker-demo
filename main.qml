@@ -2,6 +2,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.12
 import Qt.labs.settings 1.0
 import QtWebSockets 1.1
+import QtPositioning 5.12
 
 ApplicationWindow {
     id: mainWindow
@@ -77,13 +78,20 @@ ApplicationWindow {
                 id: listView
                 anchors.fill: parent
                 model: feed
-                delegate: ItemDelegate {
+                spacing: 4
+                clip: true
+                ScrollBar.vertical: ScrollBar { id: scrollbar}
+                delegate: FeedDelegate {
+                    list: listView
+                }
+
+                    /*ItemDelegate {
                     text: `${when} @${barker}: ${bark}`
                     width: parent.width
                     onClicked:  {
                         console.log('Clicked')
                     }
-                }
+                }*/
             }
 
     }
@@ -329,6 +337,10 @@ ApplicationWindow {
         stack.push(view)
     }
 
+    function showUser(name) {
+        openUserList('for u in users filter u._key == @name return u', {name: name})
+    }
+
     function next() {
         if (appState === 0) {
             login()
@@ -340,6 +352,49 @@ ApplicationWindow {
         } else if (appState === 3) {
             // We are connected to the feed
         }
+    }
+
+    function showNearby(num) {
+        openUserList(
+        'for loc in NEAR(locations, @lat, @long, @num, "distance")'
+        + ' filter loc._key != @me'
+        + '  for u in users'
+        + '  filter u._key == loc._key'
+        + '  filter u.active == true'
+        + '  sort loc.distance'
+        + '  return {_key: u._key, about: u.about, avatar: u.avatar, distance: loc.distance}'
+        , {lat: pos.position.coordinate.latitude,
+           long: pos.position.coordinate.longitude,
+           num: num,
+           me: user.name
+        })
+    }
+
+    function updateLocation(latitude, longitude) {
+        var cli = new XMLHttpRequest();
+        cli.onreadystatechange = function() {
+            if (cli.readyState === XMLHttpRequest.DONE) {
+                if (cli.status >= 200 && cli.status < 300 ) {
+                    popup.text = qsTr(`You successfully updated your location`)
+                    popup.open();
+                } else {
+                    popup.text = qsTr("Error when sending location: ") + cli.responseText
+                    popup.open();
+                }
+            }
+        }
+
+        var url = `${api}/document/locations`;
+        var data = {
+            _key: `${user.name}`,
+            location: [longitude,latitude]
+        }
+
+        cli.open('POST', url, true);
+        cli.setRequestHeader('Content-type', 'application/json');
+        cli.setRequestHeader('Accept', 'application/json');
+        cli.setRequestHeader('Authorization', `Bearer ${jwt}`);
+        cli.send(JSON.stringify(data))
     }
 
     onAppStateChanged: {
@@ -402,7 +457,7 @@ ApplicationWindow {
         }
 
         onTextMessageReceived: (message) => {
-            console.log(`Wss onTextMessageReceived: ${message}`)
+            //console.log(`Wss onTextMessageReceived: ${message}`)
             const msg = JSON.parse(message)
             const payload = Qt.atob(msg.payload)
             var bark = JSON.parse(payload)
@@ -427,6 +482,20 @@ ApplicationWindow {
             if (queue.length) {
                 _bark(queue.pop())
             }
+        }
+    }
+
+    PositionSource {
+        id: pos
+        updateInterval: 60000
+        active: true
+
+        onPositionChanged: {
+            var coord = pos.position.coordinate;
+            console.log("Coordinate:", coord.longitude, coord.latitude);
+
+            mainWindow.updateLocation(pos.position.coordinate.latitude,
+                                      pos.position.coordinate.longitude)
         }
     }
 }
