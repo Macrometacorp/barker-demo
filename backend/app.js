@@ -25,7 +25,11 @@ app.post('/barker/user', async (req, res) => {
             user: req.body.name
         })
 
-        // Todo: Grant permissions to collections
+        grantAccess(req.body.name, '*', 'ro') // Default?
+        grantAccess(req.body.name, '', 'ro') // Default?
+        grantAccess(req.body.name, 'follow', 'rw')
+        grantAccess(req.body.name, 'locations', 'rw')
+        grantAccess(req.body.name, 'users', 'rw')
     
         // Create a stream for the users feed
         doing = 'Create stream'
@@ -184,4 +188,17 @@ async function sendToStream(bark, name) {
         });
     })
     return promise
+}
+
+async function grantAccess(user, collection, permissions) {
+    var path = `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/_admin/user/${user}/database/${process.env.FABRIC}`
+    if (collection) {
+        path += `/${collection}`
+    }
+
+    try {
+        await axios.put(path , {grant: permissions})
+    } catch(error) {
+        console.log('PUT request to "%s" failed:', path, error.message)
+    }
 }
