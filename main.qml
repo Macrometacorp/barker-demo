@@ -12,11 +12,11 @@ ApplicationWindow {
     title: "barker"
 
     property int appState: 0 // 0 init, 1 have token, 2 connecting, 3 connected, 4 barking
-    property string api: null
-    property string authHeader: null
-    property string wssUrl: null
+    property string api: ''
+    property string authHeader: ''
+    property string wssUrl: ''
     property var keys: ([])
-    property string jwt: null
+    property string jwt: ''
     property var queue: ([])
     property alias  mainView: listView
     property alias stack: stackView
@@ -38,13 +38,13 @@ ApplicationWindow {
     // Remember the
     Settings {
         id: user
-        property string name: null
-        property string passwd: null
+        property string name: ''
+        property string passwd: ''
     }
 
     Settings {
         id: app
-        property string service: "http://127.0.0.1:8080"
+        property string service: "https://barker.lastviking.eu"
     }
 
     ListModel {
@@ -84,16 +84,7 @@ ApplicationWindow {
                 delegate: FeedDelegate {
                     list: listView
                 }
-
-                    /*ItemDelegate {
-                    text: `${when} @${barker}: ${bark}`
-                    width: parent.width
-                    onClicked:  {
-                        console.log('Clicked')
-                    }
-                }*/
             }
-
     }
 
     RoundButton {
@@ -371,12 +362,16 @@ ApplicationWindow {
     }
 
     function updateLocation(latitude, longitude) {
+        if (mainWindow.appState !== 3) {
+            // Only do this when the app is logged in and idle
+            return
+        }
+
         var cli = new XMLHttpRequest();
         cli.onreadystatechange = function() {
             if (cli.readyState === XMLHttpRequest.DONE) {
                 if (cli.status >= 200 && cli.status < 300 ) {
-                    popup.text = qsTr(`You successfully updated your location`)
-                    popup.open();
+                    console.log('You successfully updated your location')
                 } else {
                     popup.text = qsTr("Error when sending location: ") + cli.responseText
                     popup.open();
@@ -488,7 +483,7 @@ ApplicationWindow {
     PositionSource {
         id: pos
         updateInterval: 60000
-        active: true
+        active: mainWindow.appState === 3
 
         onPositionChanged: {
             var coord = pos.position.coordinate;
