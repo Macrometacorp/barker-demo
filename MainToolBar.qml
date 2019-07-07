@@ -50,7 +50,7 @@ ToolBar {
                 }
 
                 MenuItem {
-                    text: qsTr("I follow and tyey folloe")
+                    text: qsTr("I follow and they follow")
                     onTriggered: {
                         mainWindow.showFollowers('outbound', 2)
                     }
