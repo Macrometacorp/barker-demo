@@ -86,6 +86,34 @@ app.post('/barker/login', async (req, res) => {
     }
   });
 
+  app.post('/barker/feed', async (req, res) => {
+    console.log(`Request from ${req.connection.remoteAddress} to feed user "${req.body.name}"`)
+    
+    try {
+        
+        var body = {
+            bindVars: {who: `users/${req.body.name}`, num: 20},
+            query: `with users
+              for f in 0..1 outbound @who follow
+                filter f.active == true
+                for b in barks
+                    filter f._key == b.barker
+                    sort b.timestamp desc
+                    limit @num
+                    return b`
+        }
+      
+        const url = `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/cursor`;
+        var feed = await axios.post(url, body)
+        return res.send(feed.data)
+
+    } catch(error) {
+        console.log(`*** Request from ${req.connection.remoteAddress} to get token "${req.body.name}" failed with error: ${error.message}`)
+        return res.status(500).send({what: 'Failed to fetch feed', err: error.message})
+    }
+  });
+
+
   app.post('/barker/bark', async (req, res) => {
     console.log(`Request from ${req.connection.remoteAddress} user "${req.body.barker}" to bark`)
 
@@ -191,6 +219,8 @@ async function sendToStream(bark, name) {
 }
 
 async function grantAccess(user, collection, permissions) {
+
+    console.log('Granting permission to %s for %s', collection, user)
     var path = `${process.env.APIURL}/_tenant/${process.env.TENANT}/_fabric/${process.env.FABRIC}/_admin/user/${user}/database/${process.env.FABRIC}`
     if (collection) {
         path += `/${collection}`

@@ -38,7 +38,7 @@ ToolBar {
                 MenuItem {
                     text: qsTr("Most nearby barkers")
                     onTriggered: {
-                        mainWindow.showNearby(5)
+                        mainWindow.showNearby(7)
                     }
                 }
 

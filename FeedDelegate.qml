@@ -15,13 +15,13 @@ Item {
         radius: 6
     }
 
-    TextEdit {
+    FormattedTime {
         id: date
         x: 6
         anchors.top: parent.top
         anchors.margins: 2
         color: "darkgreen"
-        text: when
+        value: timestamp
     }
 
     TextEdit {

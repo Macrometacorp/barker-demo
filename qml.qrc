@@ -14,5 +14,6 @@
         <file>FormattedTime.qml</file>
         <file>FeedDelegate.qml</file>
         <file>Barker.qml</file>
+        <file>App.qml</file>
     </qresource>
 </RCC>

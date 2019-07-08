@@ -11,7 +11,8 @@ ApplicationWindow {
     height: 480
     title: "barker"
 
-    property int appState: 0 // 0 init, 1 have token, 2 connecting, 3 connected, 4 barking
+    property int appState: App.State.Init // 0 init, 1 have token, 2 connecting to feed,
+        // 3 connecting to websocket 4 connected, 5 barking
     property string api: ''
     property string authHeader: ''
     property string wssUrl: ''
@@ -105,7 +106,7 @@ ApplicationWindow {
         anchors.bottom: parent.bottom
         font.bold: true
         highlighted: true
-        enabled: mainWindow.appState == 3
+        enabled: mainWindow.appState === App.State.Connected
 
         onClicked: {
             var component = Qt.createComponent("qrc:/BarkDlg.qml")
@@ -175,7 +176,7 @@ ApplicationWindow {
                     var data = JSON.parse(cli.responseText)
 
                     mainWindow.api= data.api
-                    mainWindow.appState = 1
+                    mainWindow.appState = App.State.HaveToken
                     mainWindow.authHeader = `Authorization: Bearer ${data.jwt}`
                     mainWindow.jwt = data.jwt
                     mainWindow.wssUrl = data.wss
@@ -222,8 +223,8 @@ ApplicationWindow {
                 popup.open();
                 busy.running = false
 
-                if (mainWindow.appState === 4) {
-                    mainWindow.appState = 3
+                if (mainWindow.appState === App.State.Barking) {
+                    mainWindow.appState = App.State.Connected
                 }
             }
         }
@@ -236,7 +237,7 @@ ApplicationWindow {
         cli.setRequestHeader('Content-type', 'application/json');
         cli.send(JSON.stringify(data))
         busy.running = true
-        mainWindow.appState = 4
+        mainWindow.appState = App.State.Barking
     }
 
     function follow(key) {
@@ -249,10 +250,6 @@ ApplicationWindow {
                     popup.text = qsTr("Error when follwing: ") + cli.responseText
                 }
                 popup.open();
-
-                if (mainWindow.appState === 4) {
-                    mainWindow.appState = 3
-                }
             }
         }
 
@@ -280,10 +277,6 @@ ApplicationWindow {
                     popup.text = qsTr("Error when unfollowing: ") + cli.responseText
                 }
                 popup.open();
-
-                if (mainWindow.appState === 4) {
-                    mainWindow.appState = 3
-                }
             }
         }
 
@@ -333,16 +326,74 @@ ApplicationWindow {
     }
 
     function next() {
-        if (appState === 0) {
+        if (appState === App.State.Init) {
             login()
-        } else if (appState === 1) {
+        } else if (appState === App.State.HaveToken) {
+            console.log("Fetching feed")
+            fetchFeed()
+        } else if (appState === App.State.HaveFeed) {
             console.log("Activating websocket")
             ws.active = false;
             ws.active = true;
-            appState = 2
-        } else if (appState === 3) {
+            appState = App.State.ConnectToStream
+        } else if (appState === App.State.Connected) {
             // We are connected to the feed
         }
+    }
+
+    function fetchFeed() {
+        feed.clear()
+        var req = `${app.service}/barker/feed`
+        appState = App.State.ConnectToFeed
+        var cli = new XMLHttpRequest();
+        cli.onreadystatechange = function() {
+            console.log(`REST state change: ${cli.readyState}`)
+            if (cli.readyState === XMLHttpRequest.DONE) {
+                if (cli.status === 200) {
+                    var d = JSON.parse(cli.responseText );
+                    for(var r in d.result) {
+                        feed.append(d.result[r]);
+                        keys.push(r._key)
+                    }
+                    appState = App.State.HaveFeed
+                    next()
+                } else {
+                    console.log(`Query failed: ${req}`)
+                    popup.text = qsTr("Failed to fetch feed ") + `${cli.status} ${cli.statusText} ${cli.responseText}`
+                    popup.exitOnClose = true
+                    popup.open()
+                }
+                busy.running = false
+            }
+        }
+
+//        var req = `${api}/cursor`;
+//        cli.open('POST', req, true);
+//        cli.setRequestHeader('Content-type', 'application/json')
+//        cli.setRequestHeader('Accept', 'application/json')
+//        if (authHeader) {
+//            cli.setRequestHeader('Authorization', authHeader)
+//        }
+
+//        console.log(`REST request: : ${req}`)
+//        var body = {
+//            bindVars: {who: `users/${user.name}`, num: 20},
+//            query: 'with users
+//              for f in 0..1 outbound @who follow
+//                filter f.active == true
+//                for b in barks
+//                    filter f._key == b.barker
+//                    sort b.timestamp desc
+//                    limit @num
+//                    return b'
+//        }
+//        cli.send(JSON.stringify(body))
+        cli.open('POST', req, true);
+        cli.setRequestHeader('Content-type', 'application/json');
+        cli.send(JSON.stringify({
+            name: user.name,
+        }))
+        busy.running = true
     }
 
     function showNearby(num) {
@@ -362,7 +413,7 @@ ApplicationWindow {
     }
 
     function updateLocation(latitude, longitude) {
-        if (mainWindow.appState !== 3) {
+        if (mainWindow.appState !== App.State.Connected) {
             // Only do this when the app is logged in and idle
             return
         }
@@ -422,6 +473,10 @@ ApplicationWindow {
         }
     }
 
+    function ack(msgid) {
+
+    }
+
     WebSocket {
         id: ws
         url: mainWindow.wssUrl
@@ -432,17 +487,18 @@ ApplicationWindow {
             case WebSocket.Connecting:
                 console.log(`websocket connecting to "${url}"`)
                 busy.running = true
-                mainWindow.appState = 2
+                mainWindow.appState = App.State.ConnectToStream
                 break
             case WebSocket.Open:
                 busy.running = false
-                mainWindow.appState = 3
+                mainWindow.appState = App.State.Connected
                 break
             case WebSocket.Error:
                 console.log(`websocket error! ${errorString}`)
                 busy.running = false
-                if (mainWindow.appState === 3 || mainWindow.appState == 2) {
-                    mainWindow.appState = 1
+                if (mainWindow.appState === App.State.ConnectToStream
+                        || mainWindow.appState === App.State.Connected ) {
+                    mainWindow.appState = App.State.HaveFeed
                 }
                 break
             case WebSocket.Closed:
@@ -452,26 +508,29 @@ ApplicationWindow {
         }
 
         onTextMessageReceived: (message) => {
-            //console.log(`Wss onTextMessageReceived: ${message}`)
+            console.log(`Wss onTextMessageReceived: ${message}`)
             const msg = JSON.parse(message)
             const payload = Qt.atob(msg.payload)
             var bark = JSON.parse(payload)
-            bark.when = new Date(bark.timestamp).toLocaleString(Qt.locale('en'), Locale.ShortFormat);
+            //bark.when = new Date(bark.timestamp).toLocaleString(Qt.locale('en'), Locale.ShortFormat);
 
             // We keep all the keys we have loaded in 'keys to avoid
-            // duplicates when re-connecting. We could clear the feed
-            // when re-connecting as well, but that would cause flickering.
+            // duplicates, as we first get the feed from the database and
+            // then subscribe to updates here.
             if (!keys.includes(bark._key)) {
                 keys.push(bark._key)
                 feed.insert(0, bark)
             }
+
+            // Acknowledge
+            sendTextMessage(JSON.stringify({messageId: msg.messageId}))
         }
     }
 
     Timer {
         id: timer
         interval: 1000
-        running: mainWindow.appState === 3
+        running: mainWindow.appState === App.State.Connected
         repeat: true
         onTriggered: {
             if (queue.length) {
@@ -483,7 +542,7 @@ ApplicationWindow {
     PositionSource {
         id: pos
         updateInterval: 60000
-        active: mainWindow.appState === 3
+        active: mainWindow.appState === App.State.Connected
 
         onPositionChanged: {
             var coord = pos.position.coordinate;
