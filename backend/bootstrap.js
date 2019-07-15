@@ -19,7 +19,7 @@ async function bootstrap() {
     try {
 
         const fabric = new c8.Fabric(`https://${c8Url}`);
-        console.log(`Logging in to ${c8Url} as ${tenant}.${user} with password "${process.env.PASSWORD}"`);
+        console.log(`Logging in to ${c8Url} as ${tenant}.${user}`);
 
         var what = 'login'
         await fabric.login(tenant, user, process.env.PASSWORD);
